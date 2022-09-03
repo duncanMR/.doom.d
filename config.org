@@ -1,0 +1,41 @@
+#+TITLE:  Doom configuration
+#+AUTHOR: Duncan Mbuli-Robertson
+#+EMAIL: duncanr19@gmail.com
+
+* Basic configuration
+Say my name, say my name
+#+begin_src emacs-lisp
+(setq user-full-name "Duncan Mbuli-Robertson"
+      user-mail-address "duncanr19@gmail.com")
+#+end_src
+
+* Appearance
+Configure the fonts
+#+begin_src emacs-lisp :results none
+(setq doom-font (font-spec :family "Iosevka" :size 30 :weight 'regular)
+)
+
+(custom-set-faces!
+    '(org-document-title :height 1.4)
+    '(org-level-1 :inherit outline-1 :weight extra-bold :height 1.25)
+    '(org-level-2 :inherit outline-2 :weight bold :height 1.15)
+    '(org-level-3 :inherit outline-3 :weight bold :height 1.12)
+    '(org-level-4 :inherit outline-4 :weight bold :height 1.09)
+    '(org-level-5 :inherit outline-5 :weight semi-bold :height 1.06)
+    '(org-level-6 :inherit outline-6 :weight semi-bold :height 1.03)
+    '(org-level-7 :inherit outline-7 :weight semi-bold)
+    '(org-level-8 :inherit outline-8 :weight semi-bold)
+)
+#+end_src
+
+Configure the theme
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-one)
+(setq display-line-numbers-type nil)
+#+end_src
+
+* Org
+Sync org files with dropbox
+#+begin_src emacs-lisp
+  (setq org-directory "/mnt/c/Users/Duncan/Dropbox/Org")
+#+end_src
