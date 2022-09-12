@@ -9,6 +9,12 @@ Say my name, say my name
       user-mail-address "duncanr19@gmail.com")
 #+end_src
 
+Disable annoying quit message and maximise on startup
+#+begin_src emacs-lisp
+(setq confirm-kill-emacs nil)
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+#+end_src
+
 * Appearance
 Configure the fonts
 #+begin_src emacs-lisp :results none
@@ -35,7 +41,36 @@ Configure the theme
 #+end_src
 
 * Org
-Sync org files with dropbox
+** Files
+Define variable for the Dropbox directory to use in config
 #+begin_src emacs-lisp
-  (setq org-directory "/mnt/c/Users/Duncan/Dropbox/Org")
+(defvar dmr/org-directory "/mnt/c/Users/dunca/Dropbox/Org/")
+#+end_src
+
+Sync org files with Dropbox
+#+begin_src emacs-lisp
+(setq org-directory dmr/org-directory)
+#+end_src
+** Roam
+Set Org Roam directory
+#+begin_src emacs-lisp
+(use-package! org-roam
+  :init
+  (map! :leader
+        :prefix "n"
+        :desc "org-roam" "l" #'org-roam-buffer-toggle
+        :desc "org-roam-node-insert" "i" #'org-roam-node-insert
+        :desc "org-roam-node-find" "f" #'org-roam-node-find
+        :desc "org-roam-ref-find" "r" #'org-roam-ref-find
+        :desc "org-roam-show-graph" "g" #'org-roam-show-graph
+        :desc "org-roam-dailies-capture-today" "d" #'org-roam-dailies-capture-today
+        )
+  (setq org-roam-directory (concat dmr/org-directory "roam")
+        org-roam-dailies-directory "diary/"
+        org-roam-completion-everywhere t
+        org-roam-dailies-capture-templates
+            '(("d" "default" entry "* %<%I:%M %p>: %?"
+               :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%A, %e %B %Y>")))
+            )
+  )
 #+end_src
