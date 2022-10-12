@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: Sleep check-in
+# key: ch0
+# --
+*** Sleep check-in
+| HoursSlept         | $1 |
+| SleepingPillsTaken | $2 |
+| FatigueLevel       | $3 |
+$0

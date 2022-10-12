@@ -15,6 +15,23 @@ Disable annoying quit message and maximise on startup
 (add-to-list 'initial-frame-alist '(fullscreen . maximized))
 #+end_src
 
+** Key bindings
+Use free-keys package to check what keys are available
+#+begin_src emacs-lisp
+(use-package! free-keys)
+#+end_src
+
+Bind the local leader key to U and useful functions to C-c
+#+begin_src emacs-lisp
+(setq doom-localleader-key "U")
+
+(map!
+ "C-c e" #'eval-region
+ "C-c r" #'org-refile
+ "C-c k" #'free-keys
+ "C-c c" #'org-schedule
+ )
+#+end_src
 * Appearance
 Configure the fonts
 #+begin_src emacs-lisp :results none
@@ -40,6 +57,11 @@ Configure the theme
 (setq display-line-numbers-type nil)
 #+end_src
 
+Set pretty arrow to replace ... as content in org header indication:
+#+begin_src emacs-lisp
+(setq org-ellipsis "⤵")
+#+end_src
+
 * Org
 ** Files
 Define variable for the Dropbox directory to use in config
@@ -51,8 +73,49 @@ Sync org files with Dropbox
 #+begin_src emacs-lisp
 (setq org-directory dmr/org-directory)
 #+end_src
+
+** Todo states
+Set GTD style TODO keywords
+#+begin_src emacs-lisp
+(setq org-todo-keywords '((sequence "TODO(t)" "WAITING(w)" "NEXT(n)" "|" "DONE(d)" "CANCELLED(c)")))
+#+end_src
+
+Define function and binding to mark item as done/next and archive it: ([[https://github.com/hrs/dotfiles/blob/master/emacs/.emacs.d/configuration.org][from this dot file]])
+#+begin_src emacs-lisp
+(defun dmr/mark-done-and-archive ()
+  "Mark the state of an org-mode item as DONE and archive it."
+  (interactive)
+  (org-todo 'done)
+  (org-archive-subtree))
+
+(defun dmr/mark-done ()
+  "Mark the state of an org-mode item as DONE."
+  (interactive)
+  (org-todo 'done))
+
+(defun dmr/mark-next ()
+  "Mark the state of an org-mode item as DONE."
+  (interactive)
+  (org-todo "NEXT"))
+
+#+end_src
+
+Now we can bind all our new functions to a new leader key menu
+#+begin_src emacs-lisp
+(map! :leader
+      :prefix "d"
+      :desc "dmr/mark-done-and-archive" "D" #'dmr/mark-done-and-archive
+      :desc "dmr/mark-done" "d" #'dmr/mark-done
+      :desc "dmr/mark-next" "n" #'dmr/mark-next
+      )
+#+end_src
+** References
+#+begin_src emacs-lisp
+(use-package org-roam-bibtex
+  :after org-roam)
+#+end_src
 ** Roam
-Set Org Roam directory
+Set Org Roam directory and basic keybindings
 #+begin_src emacs-lisp
 (use-package! org-roam
   :init
@@ -63,14 +126,197 @@ Set Org Roam directory
         :desc "org-roam-node-find" "f" #'org-roam-node-find
         :desc "org-roam-ref-find" "r" #'org-roam-ref-find
         :desc "org-roam-show-graph" "g" #'org-roam-show-graph
-        :desc "org-roam-dailies-capture-today" "d" #'org-roam-dailies-capture-today
         )
   (setq org-roam-directory (concat dmr/org-directory "roam")
-        org-roam-dailies-directory "diary/"
         org-roam-completion-everywhere t
-        org-roam-dailies-capture-templates
-            '(("d" "default" entry "* %<%I:%M %p>: %?"
-               :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%A, %e %B %Y>")))
             )
   )
 #+end_src
+
+** Pomodoros
+Do not show clocked task in modeline
+#+begin_src emacs-lisp
+(setq org-clock-clocked-in-display nil)
+#+end_src
+
+Customise org-duration to calculate pomodoro counts from clocksums using [[https://emacs.stackexchange.com/questions/12839/use-formula-in-agenda-clockreport-to-convert-time-pomodoro-count-in-agenda][this Stack Exchange answer with the updated org function]], then set pomodoro count as an org-duration unit so that setting effort will work with pomodoro units
+#+begin_src emacs-lisp
+(defun dmr/org-minutes-to-clocksum-string (m)
+  "Format number of minutes as a clocksum string.
+   Shows the number of 25-minute pomodoros."
+  (format "%dp" (ceiling (/ m 25))))
+
+(after! org-duration
+  (fset 'org-duration-from-minutes 'dmr/org-minutes-to-clocksum-string)
+  (push (cons "p" 25) org-duration-units)
+  (org-duration-set-regexps) ;NB: org-duration-units is not implemented otherwise!
+  )
+#+end_src
+
+Set effort in pomodoros, from [[https://emacs.stackexchange.com/questions/62319/the-org-set-effort-fn-has-changed-behavior-on-emacs-28-how-to-select-an-effor][this stack exchange thread:]]
+#+begin_src emacs-lisp
+(defun dmr/org-set-effort-in-pomodoros (&optional n)
+  (interactive "P")
+  (setq n (or n (string-to-number (read-from-minibuffer "How many pomodoros: " nil nil nil nil "1" nil))))
+  (let* ((mins-per-pomodoro-prop (org-entry-get (point) "MINUTES_PER_POMODORO" t))
+         (mins-per-pomodoro (if mins-per-pomodoro-prop
+                                (string-to-number mins-per-pomodoro-prop)
+                              25)))
+    (org-set-effort nil (org-duration-from-minutes (* n mins-per-pomodoro)))))
+(map!
+ "C-c s" #'dmr/org-set-effort-in-pomodoros)
+#+end_src
+** Agenda
+Set agenda files
+#+begin_src emacs-lisp
+(setq org-agenda-files (list "projects.org"
+                             "habits.org"
+                             "inbox.org"
+))
+#+end_src
+
+Install and setup org-super-agenda
+#+begin_src emacs-lisp
+(use-package! org-super-agenda
+  :after org-agenda
+  :init
+  (setq org-super-agenda-header-map (make-sparse-keymap)) ;fix overwritten evil keybindings on super headers
+  (setq org-super-agenda-groups
+        '(
+          (:name "Inbox"
+           :tag "Inbox")
+          (:name "Habits"
+           :tag "Habits")
+          (:name "Next actions"
+           :todo "NEXT")
+          (:name "Masters"
+           :tag "Masters")
+          (:name "DPhil"
+           :tag "DPhil")
+          (:name "Chores"
+           :tag "Chores")
+          (:name "Productivity"
+           :tag "Productivity")
+          ))
+  :config
+  (org-super-agenda-mode)
+  )
+#+end_src
+
+
+Format agenda into columns
+#+begin_src emacs-lisp
+(setq org-agenda-view-columns-initially t)
+(setq org-agenda-overriding-columns-format "%TODO %46ITEM %3Effort(E){:} %3CLOCKSUM(R) %20ALLTAGS")
+#+end_src
+
+Org agenda commands
+#+begin_src emacs-lisp
+
+(defun dmr/day-planner (&optional arg)
+  (interactive "P")
+  (org-agenda arg "1"))
+#+end_src
+** Capture templates
+#+begin_src emacs-lisp
+  (setq org-capture-templates '(
+                                ("i" "Inbox" entry  (file "inbox.org")
+                                 "* TODO %?\n%U")
+                                ("p" "Project" entry
+                                 (file "projects.org")
+                                 "* %^{Project name} :%\\1: \n:PROPERTIES:\n:ARCHIVE: archive.org::* %\\1\n:END:")
+                                ("h" "Habit" entry
+                                 (file "habits.org")
+                                 "* TODO %i%?\n:PROPERTIES:\n:STYLE: habit\n:END:")
+                                ))
+
+#+end_src
+
+** Archiving and refiling
+Set org-refile targets
+#+begin_src emacs-lisp
+  (setq org-refile-targets '(("projects.org" :level . 1)
+                              ("someday.org" :level . 1)
+                              ("habits.org" :level . 0)
+                              ))
+#+end_src
+
+Archive everything into a single file:
+#+begin_src emacs-lisp
+(setq org-archive-location (concat dmr/org-directory "archive.org::"))
+#+end_src
+
+** Journal
+Set the directory for journal files:
+#+begin_src emacs-lisp
+  (setq org-journal-dir (concat dmr/org-directory "journal"))
+#+end_src
+
+Format journal files and headings nicely
+#+begin_src emacs-lisp
+  (setq org-journal-file-format "%Y-%m-%d.org"
+        org-journal-date-prefix "* "
+        org-journal-date-format "%A, %B %d %Y")
+#+end_src
+
+Make first heading be level 2, with timestamp (%R = current time)
+#+begin_src emacs-lisp
+  (setq org-journal-time-prefix "** "
+        org-journal-time-format "%R: ")
+#+end_src
+
+Bind general leader key shortcut to open today's journal without adding new
+entry:
+- '(4) makes it call the function with a prefix argument, which prevents a
+  new entry from being made.
+- Also bind key to make new journal entry.
+#+begin_src emacs-lisp
+(defun dmr/open-todays-journal ()
+  (interactive)
+  (progn
+    (org-journal-new-entry '(4))
+    (outline-show-all)
+    ))
+
+(defun dmr/journal-new-entry ()
+  (interactive)
+  (progn
+    (org-journal-new-entry nil)
+    (evil-insert-state))
+  )
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("j" . "journal") ;; org-journal bindings
+        :desc "Create new journal entry" "j" #'dmr/journal-new-entry
+        :desc "Open today's journal" "J" #'dmr/open-todays-journal
+        :desc "Open previous entry" "p" #'org-journal-previous-entry
+        :desc "Open next entry" "n" #'org-journal-next-entry
+        :desc "Search journal" "s" #'org-journal-search-forever
+        ))
+
+(map!
+ (:map calendar-mode-map
+   :n "o" #'org-journal-display-entry
+   :n "p" #'org-journal-previous-entry
+   :n "n" #'org-journal-next-entry
+   :n "O" #'org-journal-new-date-entry))
+
+#+end_src
+
+I want journal entries to still be in org-mode, since org-journal-mode doesn't
+have the org-mode leader key menu, and I can make special bindings anyway.
+First, we enable auto-fill-mode
+#+begin_src emacs-lisp
+(add-hook 'org-journal-mode-hook 'auto-fill-mode)
+(add-hook 'org-journal-mode-hook 'org-mode)
+#+end_src
+** Babel
+#+begin_src emacs-lisp
+'(org-edit-src-content-indentation 0)
+'(org-src-preserve-indentation nil)
+#+end_src
+
+
+test

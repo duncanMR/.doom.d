@@ -47,3 +47,9 @@
 ;(unpin! pinned-package another-pinned-package)
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;(unpin! t)
+(package! org-super-agenda)
+(package! free-keys)
+(package! nextflow-mode :recipe (:host github :repo "emiller88/nextflow-mode"))
+(package! org-roam-bibtex
+  :recipe (:host github :repo "org-roam/org-roam-bibtex"))
+(unpin! org-roam)
