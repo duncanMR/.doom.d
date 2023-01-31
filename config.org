@@ -35,8 +35,7 @@ Bind the local leader key to U and useful functions to C-c
 * Appearance
 Configure the fonts
 #+begin_src emacs-lisp :results none
-(setq doom-font (font-spec :family "Iosevka" :size 30 :weight 'regular)
-)
+(setq doom-font (font-spec :family "Iosevka" :size 18 :weight 'regular))
 
 (custom-set-faces!
     '(org-document-title :height 1.4)
@@ -61,12 +60,11 @@ Set pretty arrow to replace ... as content in org header indication:
 #+begin_src emacs-lisp
 (setq org-ellipsis "⤵")
 #+end_src
-
 * Org
 ** Files
 Define variable for the Dropbox directory to use in config
 #+begin_src emacs-lisp
-(defvar dmr/org-directory "/mnt/c/Users/dunca/Dropbox/Org/")
+(defvar dmr/org-directory "/mnt/c/Users/duncanr/Dropbox/Org/")
 #+end_src
 
 Sync org files with Dropbox
@@ -93,10 +91,6 @@ Define function and binding to mark item as done/next and archive it: ([[https:/
   (interactive)
   (org-todo 'done))
 
-(defun dmr/mark-next ()
-  "Mark the state of an org-mode item as DONE."
-  (interactive)
-  (org-todo "NEXT"))
 
 #+end_src
 
@@ -104,9 +98,8 @@ Now we can bind all our new functions to a new leader key menu
 #+begin_src emacs-lisp
 (map! :leader
       :prefix "d"
-      :desc "dmr/mark-done-and-archive" "D" #'dmr/mark-done-and-archive
-      :desc "dmr/mark-done" "d" #'dmr/mark-done
-      :desc "dmr/mark-next" "n" #'dmr/mark-next
+      :desc "dmr/mark-done-and-archive" "d" #'dmr/mark-done-and-archive
+      :desc "dmr/mark-done" "D" #'dmr/mark-done
       )
 #+end_src
 ** References
@@ -171,38 +164,8 @@ Set agenda files
 #+begin_src emacs-lisp
 (setq org-agenda-files (list "projects.org"
                              "habits.org"
-                             "inbox.org"
 ))
 #+end_src
-
-Install and setup org-super-agenda
-#+begin_src emacs-lisp
-(use-package! org-super-agenda
-  :after org-agenda
-  :init
-  (setq org-super-agenda-header-map (make-sparse-keymap)) ;fix overwritten evil keybindings on super headers
-  (setq org-super-agenda-groups
-        '(
-          (:name "Inbox"
-           :tag "Inbox")
-          (:name "Habits"
-           :tag "Habits")
-          (:name "Next actions"
-           :todo "NEXT")
-          (:name "Masters"
-           :tag "Masters")
-          (:name "DPhil"
-           :tag "DPhil")
-          (:name "Chores"
-           :tag "Chores")
-          (:name "Productivity"
-           :tag "Productivity")
-          ))
-  :config
-  (org-super-agenda-mode)
-  )
-#+end_src
-
 
 Format agenda into columns
 #+begin_src emacs-lisp
@@ -210,12 +173,38 @@ Format agenda into columns
 (setq org-agenda-overriding-columns-format "%TODO %46ITEM %3Effort(E){:} %3CLOCKSUM(R) %20ALLTAGS")
 #+end_src
 
-Org agenda commands
+Schedule task for today / unschedule
 #+begin_src emacs-lisp
+(defun dmr/schedule-for-today ()
+  (interactive)
+  (org-schedule nil "+0d"))
 
-(defun dmr/day-planner (&optional arg)
-  (interactive "P")
-  (org-agenda arg "1"))
+(defun dmr/unschedule ()
+  (interactive)
+  (org-schedule '(4)))
+
+#+end_src
+
+Agenda for today
+#+begin_src emacs-lisp
+(setq org-agenda-start-day nil)
+(setq org-agenda-custom-commands
+`(("1" "Today" agenda "" (
+                          (org-agenda-ndays 1)
+                          (org-agenda-span 1)
+                          )))
+                )
+
+(defun dmr/agenda-today (&optional arg)
+    (interactive "P")
+    (org-agenda arg "1"))
+
+(map! :leader
+      (:prefix "d"
+        :desc "Schedule for today" "0" #'dmr/schedule-for-today
+        :desc "Unschedule" "u" #'dmr/unschedule
+        :desc "Agenda for today" "a" #'dmr/agenda-today
+        ))
 #+end_src
 ** Capture templates
 #+begin_src emacs-lisp
@@ -318,5 +307,92 @@ First, we enable auto-fill-mode
 '(org-src-preserve-indentation nil)
 #+end_src
 
+** On launch
+Now we can open projects, inbox and agenda whenever we launch emacs
+#+begin_src emacs-lisp
+(defun dmr/find-projects ()
+    (interactive)(find-file (concat dmr/org-directory "projects.org")))
 
-test
+(defun dmr/find-inbox ()
+    (interactive)(find-file (concat dmr/org-directory "inbox.org")))
+
+;; (defun dmr/open-gtd-buffers ()
+;;     (interactive)
+;;     (progn
+;;       (doom/window-maximize-buffer)
+;;       (let ((projectile-switch-project-action 'dmr/find-projects))
+;;            (print projectile-switch-project-action)
+;;            (projectile-switch-project-by-name dmr/org-directory)
+;;            )
+;;       (evil-window-split)
+;;       (dmr/find-inbox)
+;;       (+workspace-rename "main" "Org")
+
+(defun dmr/open-org-workspace ()
+  (interactive)
+  (if (+workspace-exists-p "Org")
+      (+workspace-switch "Org")
+    (+workspace/load "Org")
+))
+
+(map! :leader
+      :prefix "d"
+      :desc "dmr/find-inbox" "i" #'dmr/find-inbox
+      :desc "dmr/open-org-workspace" "p" #'dmr/open-org-workspace
+      )
+
+#+end_src
+
+
+* Python
+
+
+#+begin_src emacs-lisp
+(use-package! eval-in-repl
+  :after python
+  :config
+    (require 'eval-in-repl-python)
+    (define-key global-map (kbd "C-<return>") nil)
+    (define-key global-map (kbd "C-RET") nil)
+    (define-key evil-insert-state-map (kbd "C-RET") nil)
+    (define-key evil-normal-state-map (kbd "C-RET") nil)
+    (define-key evil-normal-state-map (kbd "C-<return>") nil)
+    (map! :after python
+          :map python-mode-map
+          "C-<return>" #'eir-eval-in-python)
+    (setq eir-repl-placement 'right)
+)
+#+end_src
+
+Set up snakemake-mode
+#+begin_src emacs-lisp
+(use-package! snakemake-mode
+  :after python
+  :config
+)
+#+end_src
+
+* R
+#+begin_src emacs-lisp
+
+;; (defun dmr/open-gtd-buffers ()
+;;     (interactive)
+;;     (progn
+;;       (ess-eval-region-or-function-or-paragraph-and-step)
+;;       (pop-to-buffer "*R*")
+;;       (evil-goto-line)
+;; ))
+
+
+(map! :after ess-mode
+      :map ess-mode-map
+      "<normal-state> C-<return>" #'ess-eval-region-or-function-or-paragraph-and-step
+      "C-<return>" #'ess-eval-region-or-function-or-paragraph-and-step
+      "C-RET" nil)
+
+(map! :after ess-mode
+      :map ess-doc-map
+      "<normal-state> C-<return>" #'ess-eval-region-or-function-or-paragraph-and-step
+      "C-<return>" #'ess-eval-region-or-function-or-paragraph-and-step
+      "C-RET" nil)
+#+end_src
